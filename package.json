@@ -1,0 +1,11 @@
+{
+  "name": "self-projecr",
+  "version": "1.0.0",
+  "description": "to add in my resume",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "harshal",
+  "license": "ISC"
+}
