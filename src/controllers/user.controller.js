@@ -5,6 +5,8 @@ import { uploadoncloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
+import crypto from "crypto";
+
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
@@ -176,7 +178,7 @@ const logoutuser = asyncHandler(async(req, res) => {
 
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "unauthorized request")
@@ -468,6 +470,55 @@ const getWatchHistory = asyncHandler(async(req, res) => {
     )
 })
 
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(404, "User with this email does not exist");
+    }
+
+    const resetToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // The frontend URL where the user will reset their password
+    const resetUrl = `${process.env.CORS_ORIGIN}/reset-password/${resetToken}`;
+
+    // Note: In a production app, you would use Nodemailer here to email this link. 
+    // For local testing, we are logging it directly to your backend terminal!
+    console.log(`\n\n=== PASSWORD RESET LINK ===\n${resetUrl}\n===========================\n\n`);
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Password reset link generated! Check your backend terminal.")
+    );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    // Hash the incoming token to compare it with the hashed token in the database
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+        forgotPasswordToken: hashedToken,
+        forgotPasswordExpiry: { $gt: Date.now() } // Ensure token hasn't expired
+    });
+
+    if (!user) {
+        throw new ApiError(400, "Token is invalid or has expired");
+    }
+
+    user.password = newPassword;
+    user.forgotPasswordToken = undefined;
+    user.forgotPasswordExpiry = undefined;
+    
+    await user.save(); // This will automatically trigger your pre("save") bcrypt hook!
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Password reset successful")
+    );
+});
 
 
-export { registeruser,loginuser, logoutuser,refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails,updateUserAvatar,updateUserCoverImage, getUserChannelProfile, getWatchHistory}
+export { registeruser,loginuser, logoutuser,refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails,updateUserAvatar,updateUserCoverImage, getUserChannelProfile, getWatchHistory,forgotPassword,resetPassword}

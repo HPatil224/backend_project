@@ -1,6 +1,7 @@
 import mongoose, {Schema} from "mongoose";
-import jwt from "jsonwebtoken"
-import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 const userSchema = new Schema(
     {
@@ -16,7 +17,7 @@ const userSchema = new Schema(
             type: String,
             required: true,
             unique: true,
-            lowecase: true,
+            lowercase: true,
             trim: true, 
         },
         fullname: {
@@ -44,22 +45,25 @@ const userSchema = new Schema(
         },
         refreshToken: {
             type: String
-        }
+        },
+        // ✅ NEW FIELDS FOR FORGOT PASSWORD
+        forgotPasswordToken: String,
+        forgotPasswordExpiry: Date
 
     },
     {
         timestamps: true
     }
-)
+);
 
 userSchema.pre("save", async function () {
     if(!this.isModified("password")) return;
-    this.password = await bcrypt.hash(this.password, 10)
-})
+    this.password = await bcrypt.hash(this.password, 10);
+});
 
 userSchema.methods.isPasswordCorrect = async function(password){
-    return await bcrypt.compare(password, this.password)
-}
+    return await bcrypt.compare(password, this.password);
+};
 
 userSchema.methods.generateAccessToken = function(){
     return jwt.sign(
@@ -67,25 +71,36 @@ userSchema.methods.generateAccessToken = function(){
             _id: this._id,
             email: this.email,
             username: this.username,
-            fullName: this.fullName
+            fullname: this.fullname
         },
         process.env.ACCESS_TOKEN_SECRET,
         {
             expiresIn: process.env.ACCESS_TOKEN_EXPIRY
         }
-    )
-}
+    );
+};
+
 userSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id: this._id,
-            
         },
         process.env.REFRESH_TOKEN_SECRET,
         {
             expiresIn: process.env.REFRESH_TOKEN_EXPIRY
         }
-    )
-}
+    );
+};
 
-export const User = mongoose.model("User", userSchema)
+// ✅ NEW METHOD: Must be defined BEFORE the mongoose.model export!
+userSchema.methods.createPasswordResetToken = function() {
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    
+    this.forgotPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    this.forgotPasswordExpiry = Date.now() + 15 * 60 * 1000;
+    
+    return resetToken;
+};
+
+// Export must ALWAYS be the very last line
+export const User = mongoose.model("User", userSchema);

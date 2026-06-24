@@ -35,4 +35,17 @@ app.use("/api/v1/comments", commentRouter)
 app.use("/api/v1/dashboard", dashboardRouter)
 app.use("/api/v1/healthcheck", healthcheckRouter)
 
+app.use((err, req, res, next) => {
+    // If it's an error from our ApiError class, use its status code. Otherwise, default to 500.
+    const statusCode = err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    // Send a clean JSON response back to the frontend instead of HTML/Stack trace
+    return res.status(statusCode).json({
+        success: false,
+        message: message,
+        errors: err.errors || []
+    });
+});
+
 export { app }

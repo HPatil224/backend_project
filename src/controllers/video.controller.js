@@ -109,21 +109,21 @@ const publishAVideo = asyncHandler(async (req, res) => {
     const videoFile = await uploadVideoOnCloudinary(videoFileLocalPath)
     const thumbnail = await uploadoncloudinary(thumbnailLocalPath)
 
-    if (!videoFile?.url) {
-        throw new ApiError(500, "Error while uploading video file")
-    }
-    if (!thumbnail?.url) {
-        throw new ApiError(500, "Error while uploading thumbnail")
-    }
+if (!videoFile?.secure_url) {
+       throw new ApiError(500, "Error while uploading video file")
+   }
+   if (!thumbnail?.secure_url) {
+       throw new ApiError(500, "Error while uploading thumbnail")
+   }
 
-    const video = await Video.create({
-        title,
-        description,
-        videoFile: videoFile.url,
-        thumbnail: thumbnail.url,
-        duration: videoFile.duration || 0,
-        owner: req.user?._id
-    })
+const video = await Video.create({
+       title,
+       description,
+       videoFile: videoFile.secure_url,
+       thumbnail: thumbnail.secure_url,
+       duration: videoFile.duration || 0,
+       owner: req.user?._id
+   })
 
     if (!video) {
         throw new ApiError(500, "Something went wrong while publishing the video")
@@ -180,13 +180,13 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     // Thumbnail is optional on update - only touch Cloudinary if a new file arrived
     const thumbnailLocalPath = req.file?.path
-    if (thumbnailLocalPath) {
-        const thumbnail = await uploadoncloudinary(thumbnailLocalPath)
-        if (!thumbnail?.url) {
-            throw new ApiError(500, "Error while uploading thumbnail")
-        }
-        updateFields.thumbnail = thumbnail.url
+if (thumbnailLocalPath) {
+    const thumbnail = await uploadoncloudinary(thumbnailLocalPath)
+    if (!thumbnail?.secure_url) {
+        throw new ApiError(500, "Error while uploading thumbnail")
     }
+    updateFields.thumbnail = thumbnail.secure_url
+}
 
     const updatedVideo = await Video.findByIdAndUpdate(
         videoId,

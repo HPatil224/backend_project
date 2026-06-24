@@ -17,13 +17,11 @@ const uploadoncloudinary = async(localFilePath) =>{
 
         console.log("file is upoaded succesfully ", response.url);
 
-        // clean up the local temp file now that it's safely on Cloudinary
         fs.unlinkSync(localFilePath)
 
         return response
     }
     catch(error){
-        // remove the locally saved temp file as the upload is unsuccesful
         try {
             fs.unlinkSync(localFilePath)
         } catch (unlinkError) {
@@ -33,32 +31,47 @@ const uploadoncloudinary = async(localFilePath) =>{
     }
 }
 
-// Use this instead of uploadoncloudinary specifically for video files.
-// upload_large streams the file in chunks, which avoids timeouts/failures
-// on bigger video files that the regular upload() call isn't built for.
-const uploadVideoOnCloudinary = async(localFilePath) => {
-    try {
-        if (!localFilePath) return null
-
-        const response = await cloudinary.uploader.upload_large(localFilePath, {
-            resource_type: "video",
-            chunk_size: 6000000 // 6MB per chunk
-        })
-
-        console.log("video uploaded successfully ", response.url);
-
-        fs.unlinkSync(localFilePath)
-
-        return response
-    }
-    catch (error) {
-        try {
-            fs.unlinkSync(localFilePath)
-        } catch (unlinkError) {
-            // file may already be gone - safe to ignore
+// upload_large uses a callback pattern under the hood, not a Promise,
+// so we wrap it manually to use it cleanly with async/await.
+// Only actually needed for video files over 100MB - for anything smaller,
+// the regular upload() above works fine and is simpler.
+const uploadVideoOnCloudinary = (localFilePath) => {
+    return new Promise((resolve, reject) => {
+        if (!localFilePath) {
+            resolve(null)
+            return
         }
-        return null
-    }
+
+        cloudinary.uploader.upload_large(
+            localFilePath,
+            {
+                resource_type: "video",
+                chunk_size: 6000000
+            },
+            (error, result) => {
+                if (error) {
+                    console.log("CLOUDINARY VIDEO UPLOAD ERROR:", error)
+                    try {
+                        fs.unlinkSync(localFilePath)
+                    } catch (unlinkError) {
+                        // file may already be gone - safe to ignore
+                    }
+                    resolve(null)
+                    return
+                }
+
+                console.log("video uploaded successfully ", result.secure_url)
+
+                try {
+                    fs.unlinkSync(localFilePath)
+                } catch (unlinkError) {
+                    // file may already be gone - safe to ignore
+                }
+
+                resolve(result)
+            }
+        )
+    })
 }
 
 export {uploadoncloudinary, uploadVideoOnCloudinary}
