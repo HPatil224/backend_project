@@ -12,13 +12,11 @@ import { upload } from "../middleware/multer.middleware.js";
 
 const router = Router();
 
-// every route below requires a logged-in user
-router.use(verifyJWT);
-
 router
     .route("/")
-    .get(getAllVideos)
+    .get(getAllVideos) // public - anyone can browse videos
     .post(
+        verifyJWT,
         upload.fields([
             {
                 name: "videoFile",
@@ -34,10 +32,10 @@ router
 
 router
     .route("/:videoId")
-    .get(getVideoById)
-    .delete(deleteVideo)
-    .patch(upload.single("thumbnail"), updateVideo);
+    .get(getVideoById) // public - anyone can watch a video
+    .delete(verifyJWT, deleteVideo)
+    .patch(verifyJWT, upload.single("thumbnail"), updateVideo);
 
-router.route("/toggle/publish/:videoId").patch(togglePublishStatus);
+router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus);
 
 export default router;
